@@ -32,15 +32,13 @@ LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     y = result.second;
                     if (x >= 'A' && x <= 'J' && y >= 1 && y <= 10)
                     {
-                        // Valid coordinate format
-                        MessageBox(GetParent(hwnd), buf, "Text Box Content", MB_OK | MB_ICONINFORMATION);
-
                         HWND Parenthwnd = GetParent(hwnd);
-                        if ((ComputerBoard_Cells[x - 'A'][y - 1] == 1) || (ComputerBoard_Cells[int(x)][int(y)] == 2)) {
+                        if ((ComputerBoard_Cells[x - 'A'][y - 1] == 1) || (ComputerBoard_Cells[x - 'A'][y - 1] == 2)) {
                             MessageBox(hwnd, "You already hit this cell", "Turn", MB_OK | MB_ICONWARNING);
                         }
                         else {
-                            UpdateBoard(hwnd, ComputerBoard_Cells, x - 'A', int(y), ComputerShips, ComputerNum_Ships, gridHeight, gridWidth, 0, Shipsunk);
+                            UpdateBoard(Parenthwnd, ComputerBoard_Cells, x - 'A', y - 1, ComputerShips, ComputerNum_Ships, gridHeight, gridWidth, 0, Shipsunk);
+                            InvalidateRect(Parenthwnd, NULL, FALSE);
                             if (ComputerBoard_Cells[x - 'A'][y - 1] != 1) {
                                 Computerturn(hwnd, PlayerBoard_Cells, gridHeight, gridWidth, PlayerShips, Shipsunk, hit_deck);
                             }

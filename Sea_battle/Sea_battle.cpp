@@ -34,10 +34,12 @@ bool isHorizontal = true;
 int Side;
 bool Shipsunk = true;
 HWND hwndButtons[4];
+HWND hwndListBox;
 int hit_deck = 0;
 int computerX, computerY;
 int first_X, first_Y;
 int Computer_isHorizontal = -1;
+int Points = 0;
 
 bool CheckAllZero(HWND hwnd) {
 	bool allZero = true;
@@ -68,6 +70,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	static HWND hwndSeaBattle;
 	static HWND hwndPlayButton;
 	static HWND hwndQuitButton;
+
+	if ((PlayerNum_Ships == 0) && (isPlaying)) {
+		MessageBox(hwnd, "Computer Wins", "Turn", MB_OK | MB_ICONSTOP);
+	}
+	if ((ComputerNum_Ships == 0) && (isPlaying)) {
+		MessageBox(hwnd, "Player Wins", "Turn", MB_OK | MB_ICONSTOP);
+	}
 
 	switch (msg)
 	{
@@ -135,6 +144,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					hwndEdit = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL, Computer_PaddingX, paddingY + gridHeight * cellSize + 10, gridWidth * cellSize, 20, hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
 					DefEditProc = (WNDPROC)SetWindowLongPtr(hwndEdit, GWLP_WNDPROC, (LONG_PTR)EditProc);
 					isPlaying = true;
+					hwndListBox = CreateWindowEx(0, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | LBS_NOTIFY,
+						20, 240, 200, 200, hwnd, NULL, GetModuleHandle(NULL), NULL);
 				}
 				InvalidateRect(hwnd, NULL, FALSE);
 				SetFocus(hwnd);
@@ -173,7 +184,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				ShowWindow(GetDlgItem(hwnd, 10 + i), SW_HIDE);
 			}
 			RandomPlacement(ComputerBoard_Cells, ShipSize, ComputerNum_Ships, 1, gridHeight, gridWidth, ComputerShips);
-
+			hwndListBox = CreateWindowEx(0, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | LBS_STANDARD | LBS_NOTIFY,
+				20, 240, 200, 200, hwnd, NULL, GetModuleHandle(NULL), NULL);
 			InvalidateRect(hwnd, NULL, TRUE);
 		}
 		break;
@@ -334,16 +346,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 						Computerturn(hwnd, PlayerBoard_Cells, gridHeight, gridWidth, PlayerShips, Shipsunk, hit_deck);
 					}
 				}
-				if (PlayerNum_Ships == 0) {
-					MessageBox(hwnd, "Computer Wins", "Turn", MB_OK | MB_ICONSTOP);
-					PostQuitMessage(0);
-					break;
-				}
-				if (ComputerNum_Ships == 0) {
-					MessageBox(hwnd, "Player Wins", "Turn", MB_OK | MB_ICONSTOP);
-					PostQuitMessage(0);
-					break;
-				}
 			}
 		}
 	}
@@ -393,7 +395,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-
 	return 0;
 }
 

@@ -119,10 +119,12 @@ void UpdateBoard(HWND& hwnd, vector<vector<int>>& Board_Cells, int x, int y, vec
         Board_Cells[x][y] = 1; // Mark as hit ship
         if (Turn == 1) {
             Shipsunk = false;
-            MessageBox(hwnd, (LPCSTR)("Computer hit a ship (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);
+            /*MessageBox(hwnd, (LPCSTR)("Computer hit a ship (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);*/
+            SendMessage(hwndListBox, LB_ADDSTRING, 0, (LPARAM)("Computer hit a ship (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str());
         }
         else {
-            MessageBox(hwnd, (LPCSTR)("You hit a ship (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);
+            /*MessageBox(hwnd, (LPCSTR)("You hit a ship (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);*/
+            SendMessage(hwndListBox, LB_ADDSTRING, 0, (LPARAM)("You hit a ship (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str());
         }
         for (int i = 0; i < Num_Ships; i++) {
             k[i] = 0;
@@ -136,7 +138,8 @@ void UpdateBoard(HWND& hwnd, vector<vector<int>>& Board_Cells, int x, int y, vec
                     }
                 }
                 if (k[i] == Board_Ships[i].size) {
-                    MessageBox(hwnd, (LPCSTR)(to_string(Board_Ships[i].size) + "-deck ship was sunk").c_str(), "Update Board", MB_OK);
+                    /*MessageBox(hwnd, (LPCSTR)(to_string(Board_Ships[i].size) + "-deck ship was sunk").c_str(), "Update Board", MB_OK);*/
+                    SendMessage(hwndListBox, LB_ADDSTRING, 0, (LPARAM)(to_string(Board_Ships[i].size) + "-deck ship was sunk").c_str());
                     for (int j = Board_Ships[i].x_head; j < Board_Ships[i].x_head + Board_Ships[i].size; j++) {
                         for (int dx = -1; dx <= 1; dx++) {
                             for (int dy = -1; dy <= 1; dy++) {
@@ -148,14 +151,16 @@ void UpdateBoard(HWND& hwnd, vector<vector<int>>& Board_Cells, int x, int y, vec
                             }
                         }
                     }
-
-                    Board_Ships.erase(Board_Ships.begin() + i);
-                    Num_Ships--;
                     if (Turn == 1) {
                         Shipsunk = true;
                         Computer_isHorizontal = -1;
                         Side = -1;
+                        Points = Points - Board_Ships[i].size;
+                    } else {
+                        Points = Points + Board_Ships[i].size;
                     }
+                    Board_Ships.erase(Board_Ships.begin() + i);
+                    Num_Ships--;
                 }
             }
             else {
@@ -168,7 +173,8 @@ void UpdateBoard(HWND& hwnd, vector<vector<int>>& Board_Cells, int x, int y, vec
                     }
                 }
                 if (k[i] == Board_Ships[i].size) {
-                    MessageBox(hwnd, (LPCSTR)(to_string(Board_Ships[i].size) + "-deck ship was sunk").c_str(), "Update Board", MB_OK);
+                    /*MessageBox(hwnd, (LPCSTR)(to_string(Board_Ships[i].size) + "-deck ship was sunk").c_str(), "Update Board", MB_OK);*/
+                    SendMessage(hwndListBox, LB_ADDSTRING, 0, (LPARAM)(to_string(Board_Ships[i].size) + "-deck ship was sunk").c_str());
                     for (int j = Board_Ships[i].y_head; j < Board_Ships[i].y_head + Board_Ships[i].size; j++) {
                         for (int dx = -1; dx <= 1; dx++) {
                             for (int dy = -1; dy <= 1; dy++) {
@@ -195,11 +201,14 @@ void UpdateBoard(HWND& hwnd, vector<vector<int>>& Board_Cells, int x, int y, vec
     else if (Board_Cells[x][y] != 1) {
         Board_Cells[x][y] = 2;// Mark as miss
         if (Turn == 1) {
-            MessageBox(hwnd, (LPCSTR)("Computer miss (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);
+            /*MessageBox(hwnd, (LPCSTR)("Computer miss (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);*/
+            SendMessage(hwndListBox, LB_ADDSTRING, 0, (LPARAM)("Computer miss (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str());
         }
         else {
-            MessageBox(hwnd, (LPCSTR)("You miss (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);
+            /*MessageBox(hwnd, (LPCSTR)("You miss (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str(), "Update Board", MB_OK);*/
+            SendMessage(hwndListBox, LB_ADDSTRING, 0, (LPARAM)("You miss (" + string(1, x_char) + ", " + to_string(y + 1) + ")").c_str());
         }
     }
     InvalidateRect(hwnd, NULL, TRUE);
+    SendMessage(hwndListBox, WM_VSCROLL, SB_LINEDOWN, 0);
 }
