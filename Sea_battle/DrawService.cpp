@@ -186,13 +186,17 @@ void UpdateBoard(HWND& hwnd, vector<vector<int>>& Board_Cells, int x, int y, vec
                             }
                         }
                     }
-                    Board_Ships.erase(Board_Ships.begin() + i);
-                    Num_Ships--;
                     if (Turn == 1) {
                         Shipsunk = true;
                         Computer_isHorizontal = -1;
                         Side = -1;
+                        Points -= Board_Ships[i].size;
                     }
+                    else {
+                        Points += Board_Ships[i].size;
+                    }
+                    Board_Ships.erase(Board_Ships.begin() + i);
+                    Num_Ships--;
                 }
 
             }

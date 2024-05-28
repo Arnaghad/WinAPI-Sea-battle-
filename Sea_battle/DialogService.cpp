@@ -3,6 +3,7 @@
 #include <string>
 #include "Resource.h"
 #include "DialogService.h"
+using namespace std;
 
 INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
@@ -32,3 +33,32 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     return (INT_PTR)FALSE;
 }
 
+INT_PTR CALLBACK CreateFileDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
+    char Name[MAX_PATH];
+    const char fileName[] = "Score"; // Changed fileName to const
+
+    switch (message) {
+    case WM_COMMAND:
+        if (LOWORD(wParam) == IDOK) {
+            GetDlgItemText(hDlg, IDC_NAME, Name, MAX_PATH);
+
+            FILE* file;
+            if (fopen_s(&file, fileName, "a") == 0 && file != NULL) { // Changed file opening mode to "a"
+                fprintf(file, Name);
+                fclose(file);
+            }
+            else {
+                // Handle fopen_s failure
+                MessageBox(hDlg, "Failed to create file!", "Error", MB_OK | MB_ICONERROR);
+            }
+            EndDialog(hDlg, IDOK);
+            return TRUE;
+        }
+        else if (LOWORD(wParam) == IDCANCEL) {
+            EndDialog(hDlg, IDCANCEL);
+            return TRUE;
+        }
+        break;
+    }
+    return FALSE;
+}

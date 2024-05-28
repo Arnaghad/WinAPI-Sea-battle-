@@ -10,9 +10,13 @@
 #include "PlacementService.h"
 #include "DrawService.h"
 #include "ComputerService.h"
+#include "FileService.h"
+#include <fstream>
+#include <streambuf>
 
 using namespace std;
 
+bool updatedOnce;
 WNDPROC DefEditProc;
 const int gridWidth = 10;
 const int gridHeight = 10;
@@ -25,6 +29,7 @@ vector<Ships> ComputerShips(10);
 int PlayerNum_Ships = 0;
 int ComputerNum_Ships = 10;
 HWND hwndEdit;
+HINSTANCE hInst;
 bool isPlaying = false;
 bool isManual = false;
 static int cursorX = 0; // Initial cursor position
@@ -40,6 +45,9 @@ int computerX, computerY;
 int first_X, first_Y;
 int Computer_isHorizontal = -1;
 int Points = 0;
+static bool isFinal = false;
+HWND hwndOKButton;
+HICON hIcon1;
 
 bool CheckAllZero(HWND hwnd) {
 	bool allZero = true;
@@ -71,13 +79,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	static HWND hwndPlayButton;
 	static HWND hwndQuitButton;
 
-	if ((PlayerNum_Ships == 0) && (isPlaying)) {
-		MessageBox(hwnd, "Computer Wins", "Turn", MB_OK | MB_ICONSTOP);
-	}
-	if ((ComputerNum_Ships == 0) && (isPlaying)) {
-		MessageBox(hwnd, "Player Wins", "Turn", MB_OK | MB_ICONSTOP);
-	}
-
 	switch (msg)
 	{
 	case WM_CREATE:
@@ -100,6 +101,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		HFONT hFont = CreateFont(40, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
 			CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
 		SendMessage(hwndSeaBattle, WM_SETFONT, WPARAM(hFont), TRUE);
+		// Create the OK button here (moved from WM_PAINT)
+		int okButtonWidth = 100;
+		int okButtonHeight = 30;
+		int okButtonX = (640 - okButtonWidth) / 2;
+		int okButtonY = 400; // Adjust as needed
+		hwndOKButton = CreateWindow("BUTTON", "OK", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+			okButtonX, okButtonY, okButtonWidth, okButtonHeight, hwnd, (HMENU)101, GetModuleHandle(NULL), NULL);
+		ShowWindow(hwndOKButton, SW_HIDE); // Initially hide the button
+
 		break;
 	}
 
@@ -187,6 +197,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			hwndListBox = CreateWindowEx(0, "LISTBOX", "", WS_CHILD | WS_VISIBLE | WS_VSCROLL | LBS_STANDARD | LBS_NOTIFY,
 				20, 240, 200, 200, hwnd, NULL, GetModuleHandle(NULL), NULL);
 			InvalidateRect(hwnd, NULL, TRUE);
+		} else if (LOWORD(wParam) == 101) {
+			DestroyWindow(hwnd);
 		}
 		break;
 
@@ -225,7 +237,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (isManual)
 			{
 				// Prompt user to confirm ship placement
-				int result = MessageBox(hwnd, ("Do you want to place a " + to_string(cursorLength) + "-deck ship at position " + to_string(cursorX) + ", " + to_string(cursorY) + "?").c_str(), "Ship Placement Confirmation", MB_YESNO | MB_ICONQUESTION);
+				int result = MessageBox(hwnd, ("Do you want to place a " + to_string(cursorLength) + "-deck ship at position " + char('A' + cursorX) + ", " + to_string(cursorY + 1) + " ? ").c_str(), "Ship Placement Confirmation", MB_YESNO | MB_ICONQUESTION);
 				if (result == IDYES)
 				{
 					if (cursorLength > 0) // Ensure cursor length is greater than 0
@@ -263,7 +275,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 						EnableWindow(ConfirmButton, TRUE);
 					}
 				}
-				else
+				else if (result != IDNO)
 				{
 					MessageBox(hwnd, "No more ships of this length can be placed.", "Ship Placement Error", MB_OK | MB_ICONERROR);
 				}
@@ -290,7 +302,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hwnd, &ps);
-
+		DrawIcon(hdc, 10, 20, hIcon1);
 		// Create an off-screen DC for double-buffering
 		HDC hdcBuffer = CreateCompatibleDC(hdc);
 		HBITMAP hbmBuffer = CreateCompatibleBitmap(hdc, windowWidth, windowHeight);
@@ -322,6 +334,71 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		// Delete the off-screen bitmap and DC
 		DeleteObject(hbmBuffer);
 		DeleteDC(hdcBuffer);
+
+		if ((PlayerNum_Ships == 0) && (isPlaying) && (!isFinal)) {
+			const char fileName[] = "Score";
+			FILE* file;
+			MessageBox(hwnd, "Computer Wins", "Turn", MB_OK | MB_ICONSTOP);
+			isPlaying = false;
+			isFinal = true;
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_NAME), hwnd, CreateFileDlgProc);
+			updatedOnce = false; // Flag to track if drawing has been updated
+			if (fopen_s(&file, fileName, "a") == 0 && file != NULL) { 
+				string stringPoints = " " + to_string(Points) + "\n";
+				fprintf(file, stringPoints.c_str());
+				fclose(file);
+			}
+			else {
+				// Handle fopen_s failure
+				MessageBox(hwnd, "Failed to create file!", "Error", MB_OK | MB_ICONERROR);
+			}
+		}
+		if ((ComputerNum_Ships == 0) && (isPlaying) && (!isFinal)) {
+			MessageBox(hwnd, "Player Wins", "Turn", MB_OK | MB_ICONSTOP);
+			const char fileName[] = "Score";
+			FILE* file;
+			isPlaying = false;
+			isFinal = true;
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_NAME), hwnd, CreateFileDlgProc);
+			if (fopen_s(&file, fileName, "a") == 0 && file != NULL) { 
+				string stringPoints = " " + to_string(Points) + "\n";
+				fprintf(file, stringPoints.c_str());
+				fclose(file);
+			}
+			else {
+				// Handle fopen_s failure
+				MessageBox(hwnd, "Failed to create file!", "Error", MB_OK | MB_ICONERROR);
+			}
+		}
+		if (isFinal) {
+			// Read the Score file
+			sortFile("Score");
+			ifstream file("Score");
+			string score;
+			string scoreWithHeader = "Name Score\n";
+
+			// Read each line from the file and append it to the scoreWithHeader string
+			string line;
+			int counter = 1;
+			while (getline(file, line)) {
+				scoreWithHeader += to_string(counter) + ". " + line + "\n";
+				counter++;
+			}
+
+			file.close();
+
+			// Display the Score file content
+			SetBkColor(hdc, RGB(211, 211, 211));
+			DrawText(hdc, scoreWithHeader.c_str(), -1, &rect, DT_CENTER | DT_VCENTER | DT_WORDBREAK);
+			ShowWindow(hwndOKButton, SW_SHOW);
+			ShowWindow(hwndEdit, SW_HIDE);
+			ShowWindow(hwndListBox, SW_HIDE);
+			if (!updatedOnce) {
+				InvalidateRect(hwnd, NULL, TRUE);
+				updatedOnce = true;
+			}
+		}
+
 
 		EndPaint(hwnd, &ps);
 	}
@@ -360,11 +437,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	checkAndEraseLines();
 	const char CLASS_NAME[] = "Sample Window Class";
 	WNDCLASS wc = {};
 	wc.lpfnWndProc = WndProc;
 	wc.hInstance = hInstance;
 	wc.lpszClassName = CLASS_NAME;
+	hInst = hInstance; 
+	wc.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(134));
+
 
 	RegisterClass(&wc);
 
