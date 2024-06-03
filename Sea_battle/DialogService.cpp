@@ -34,22 +34,38 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 }
 
 INT_PTR CALLBACK CreateFileDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam) {
-    char Name[MAX_PATH];
-    const char fileName[] = "Score"; // Changed fileName to const
+    TCHAR Name[MAX_PATH];
+    const TCHAR fileName[] = TEXT("Score"); // Use TEXT macro for Unicode compatibility
 
     switch (message) {
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK) {
             GetDlgItemText(hDlg, IDC_NAME, Name, MAX_PATH);
 
-            FILE* file;
-            if (fopen_s(&file, fileName, "a") == 0 && file != NULL) { // Changed file opening mode to "a"
-                fprintf(file, Name);
-                fclose(file);
+            HANDLE hFile = CreateFile(fileName, // File name
+                GENERIC_WRITE, // Open for writing
+                0, // Do not share
+                NULL, // Default security
+                OPEN_ALWAYS, // Open existing file or create new
+                FILE_ATTRIBUTE_NORMAL, // Normal file
+                NULL); // No template file
+
+            if (hFile != INVALID_HANDLE_VALUE) {
+                // Move the cursor to the end of the file
+                SetFilePointer(hFile, 0, NULL, FILE_END);
+
+                DWORD written;
+                WriteFile(hFile, // Handle to file
+                    Name, // Data to write
+                    lstrlen(Name) * sizeof(TCHAR), // Number of bytes to write
+                    &written, // Number of bytes written
+                    NULL); // No overlapped structure
+
+                CloseHandle(hFile); // Always close the handle
             }
             else {
-                // Handle fopen_s failure
-                MessageBox(hDlg, "Failed to create file!", "Error", MB_OK | MB_ICONERROR);
+                // Handle CreateFile failure
+                MessageBox(hDlg, TEXT("Failed to create or open file!"), TEXT("Error"), MB_OK | MB_ICONERROR);
             }
             EndDialog(hDlg, IDOK);
             return TRUE;
@@ -62,3 +78,4 @@ INT_PTR CALLBACK CreateFileDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARA
     }
     return FALSE;
 }
+

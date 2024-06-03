@@ -13,6 +13,8 @@
 #include "FileService.h"
 #include <fstream>
 #include <streambuf>
+#include <sstream>
+
 
 using namespace std;
 
@@ -187,7 +189,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			isPlaying = true;
 			hwndEdit = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL, Computer_PaddingX, paddingY + gridHeight * cellSize + 10, gridWidth * cellSize, 20, hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
 			DefEditProc = (WNDPROC)SetWindowLongPtr(hwndEdit, GWLP_WNDPROC, (LONG_PTR)EditProc);
-
+			ShowWindow(GetDlgItem(hwnd, 100), SW_HIDE);
 			for (int i = 0; i < 4; ++i)
 			{
 				ShowWindow(hwndButtons[i], SW_HIDE);
@@ -337,67 +339,97 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		if ((PlayerNum_Ships == 0) && (isPlaying) && (!isFinal)) {
 			const char fileName[] = "Score";
-			FILE* file;
+			HANDLE hFile;
 			MessageBox(hwnd, "Computer Wins", "Turn", MB_OK | MB_ICONSTOP);
 			isPlaying = false;
 			isFinal = true;
-			DialogBox(hInst, MAKEINTRESOURCE(IDD_NAME), hwnd, CreateFileDlgProc);
+			int Dialog = DialogBox(hInst, MAKEINTRESOURCE(IDD_NAME), hwnd, CreateFileDlgProc);
 			updatedOnce = false; // Flag to track if drawing has been updated
-			if (fopen_s(&file, fileName, "a") == 0 && file != NULL) { 
-				string stringPoints = " " + to_string(Points) + "\n";
-				fprintf(file, stringPoints.c_str());
-				fclose(file);
+			hFile = CreateFile(fileName, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile != INVALID_HANDLE_VALUE && Dialog != 2) {
+				std::string stringPoints = " " + std::to_string(Points) + "\n";
+				DWORD bytesWritten;
+				WriteFile(hFile, stringPoints.c_str(), stringPoints.size(), &bytesWritten, NULL);
+				CloseHandle(hFile);
 			}
-			else {
-				// Handle fopen_s failure
-				MessageBox(hwnd, "Failed to create file!", "Error", MB_OK | MB_ICONERROR);
+			else if (Dialog != 2) {
+				// Handle CreateFile failure
+				MessageBox(hwnd, "Failed to create or open file!", "Error", MB_OK | MB_ICONERROR);
+			}
+			else if (Dialog == 2){
+				DestroyWindow(hwnd);
 			}
 		}
 		if ((ComputerNum_Ships == 0) && (isPlaying) && (!isFinal)) {
-			MessageBox(hwnd, "Player Wins", "Turn", MB_OK | MB_ICONSTOP);
+			MessageBox(hwnd, "Player Wins", "Turn", MB_OK | MB_ICONINFORMATION);
 			const char fileName[] = "Score";
-			FILE* file;
+			HANDLE hFile;
 			isPlaying = false;
 			isFinal = true;
-			DialogBox(hInst, MAKEINTRESOURCE(IDD_NAME), hwnd, CreateFileDlgProc);
-			if (fopen_s(&file, fileName, "a") == 0 && file != NULL) { 
-				string stringPoints = " " + to_string(Points) + "\n";
-				fprintf(file, stringPoints.c_str());
-				fclose(file);
+			int Dialog = DialogBox(hInst, MAKEINTRESOURCE(IDD_NAME), hwnd, CreateFileDlgProc);
+			updatedOnce = false;
+			hFile = CreateFile(fileName, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile != INVALID_HANDLE_VALUE && Dialog != 2) {
+				std::string stringPoints = " " + std::to_string(Points) + "\n";
+				DWORD bytesWritten;
+				WriteFile(hFile, stringPoints.c_str(), stringPoints.size(), &bytesWritten, NULL);
+				CloseHandle(hFile);
+			}
+			else if (Dialog != 2) {
+				// Handle CreateFile failure
+				MessageBox(hwnd, "Failed to create or open file!", "Error", MB_OK | MB_ICONERROR);
+			}
+			else if (Dialog == 2) {
+				DestroyWindow(hwnd);
+			}
+		}
+
+		if (isFinal) {
+			// Sort the Score file
+			sortFile("Score");
+			// Use CreateFile to open or create the file
+			HANDLE hFile = CreateFile("Score", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile == INVALID_HANDLE_VALUE) {
+				MessageBox(nullptr, "Failed to open or create file Score", "Error", MB_ICONERROR);
 			}
 			else {
-				// Handle fopen_s failure
-				MessageBox(hwnd, "Failed to create file!", "Error", MB_OK | MB_ICONERROR);
+				// Read the file content and prepare the scoreWithHeader string
+				DWORD bytesRead;
+				char buffer[1024];
+				string scoreWithHeader = "Name Score\n";
+				int counter = 1;
+
+				// Read the file until there is nothing left
+				while (ReadFile(hFile, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+					buffer[bytesRead] = '\0'; // Null-terminate the string
+					string content(buffer);
+					stringstream ss(content);
+					string line;
+
+					// Read each line from the stringstream
+					while (getline(ss, line)) {
+						scoreWithHeader += to_string(counter) + ". " + line + "\n";
+						counter++;
+					}
+				}
+
+				// Close the file handle
+				CloseHandle(hFile);
+
+				// Display the Score file content
+				SetBkColor(hdc, RGB(211, 211, 211));
+				DrawText(hdc, scoreWithHeader.c_str(), -1, &rect, DT_CENTER | DT_VCENTER | DT_WORDBREAK);
+				ShowWindow(hwndOKButton, SW_SHOW);
+				ShowWindow(hwndEdit, SW_HIDE);
+				ShowWindow(hwndListBox, SW_HIDE);
+				if (!updatedOnce) {
+					InvalidateRect(hwnd, NULL, TRUE);
+					updatedOnce = true;
+				}
 			}
 		}
-		if (isFinal) {
-			// Read the Score file
-			sortFile("Score");
-			ifstream file("Score");
-			string score;
-			string scoreWithHeader = "Name Score\n";
 
-			// Read each line from the file and append it to the scoreWithHeader string
-			string line;
-			int counter = 1;
-			while (getline(file, line)) {
-				scoreWithHeader += to_string(counter) + ". " + line + "\n";
-				counter++;
-			}
 
-			file.close();
-
-			// Display the Score file content
-			SetBkColor(hdc, RGB(211, 211, 211));
-			DrawText(hdc, scoreWithHeader.c_str(), -1, &rect, DT_CENTER | DT_VCENTER | DT_WORDBREAK);
-			ShowWindow(hwndOKButton, SW_SHOW);
-			ShowWindow(hwndEdit, SW_HIDE);
-			ShowWindow(hwndListBox, SW_HIDE);
-			if (!updatedOnce) {
-				InvalidateRect(hwnd, NULL, TRUE);
-				updatedOnce = true;
-			}
-		}
 
 
 		EndPaint(hwnd, &ps);
@@ -437,7 +469,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	checkAndEraseLines();
+	TruncateFileAfterTenLines(L"Score");
 	const char CLASS_NAME[] = "Sample Window Class";
 	WNDCLASS wc = {};
 	wc.lpfnWndProc = WndProc;
